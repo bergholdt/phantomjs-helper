@@ -1,10 +1,10 @@
 require 'phantomjs/helper/version'
 require 'phantomjs/helper/bitbucket_download_parser'
+require 'phantomjs/helper/extractor'
 require 'fileutils'
 require 'rbconfig'
 require 'open-uri'
-require 'zip'
-require 'ffi-libarchive'
+require 'openssl'
 
 module Phantomjs
   class Helper
@@ -27,12 +27,12 @@ module Phantomjs
       Dir.chdir install_dir do
         FileUtils.rm_f filename
         File.open(filename, 'wb') do |saved_file|
-          URI.parse(url).open('rb') do |read_file|
+          URI.parse(url).open('rb',{:ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE}) do |read_file|
             saved_file.write(read_file.read)
           end
         end
         raise "Could not download #{url}" unless File.exists? filename
-        extract filename
+        Extractor.extract(filename, binary_path)
         FileUtils.rm_f filename
       end
       raise "Could not unzip #{filename} to get #{binary_path}" unless File.exists? binary_path
@@ -52,30 +52,6 @@ module Phantomjs
     end
 
     private 
-
-    def extract(filename)
-      case File.extname(filename)
-        when '.zip'
-          Zip::File.open(filename) do |zip_file|
-            entry = zip_file.glob('**/bin/phantomjs*').first
-            raise "Could not find phantomjs binary in zip archive #{filename}" unless entry
-            FileUtils.rm_f entry.name
-            entry.extract(File.basename(entry.name))
-          end
-        when '.bz2'
-          Archive.read_open_filename(filename) do |ar|
-            ar.each_entry do |e|
-              if e.pathname.include?('bin/phantomjs')
-                File.open(binary_path, 'wb') do |saved_file|
-                  saved_file.write(ar.read_data)
-                end
-              end
-            end
-          end
-        else
-          raise "Do not know how to extract binary from #{filename}"
-      end
-    end
 
     def driver_name
       /phantomjs-.*-#{platform}/

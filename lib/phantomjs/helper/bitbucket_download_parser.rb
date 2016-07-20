@@ -1,5 +1,6 @@
 require 'nokogiri'
 require 'open-uri'
+require 'openssl'
 
 module Phantomjs
   class Helper
@@ -10,7 +11,7 @@ module Phantomjs
       def initialize(driver_name, url:, open_uri_provider: OpenURI)
         @driver_name = driver_name
         @url = url
-        @source = open_uri_provider.open_uri(url)
+        @source = open_uri_provider.open_uri(url, {:ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE})
       end
 
       def downloads
